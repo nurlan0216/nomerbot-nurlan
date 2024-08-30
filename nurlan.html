@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Извлечение номеров и сохранение в VCF</title>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@2.1.0/dist/tesseract.min.js"></script>
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            text-align: center;
+            margin: 20px;
+        }
+        input[type="file"] {
+            margin-bottom: 10px;
+        }
+        button {
+            margin-top: 10px;
+        }
+        #downloadLink {
+            display: none;
+            margin-top: 20px;
+        }
+    </style>
+</head>
+<body>
+    <h1>Извлечение номеров телефонов из изображения и сохранение в VCF</h1>
+    <input type="file" id="imageInput" accept="image/*">
+    <button onclick="processImage()">Извлечь номера и создать файл VCF</button>
+    <a id="downloadLink">Скачать файл VCF</a>
+
+    <script>
+        function processImage() {
+            const fileInput = document.getElementById('imageInput');
+            const file = fileInput.files[0];
+            
+            if (!file) {
+                alert('Пожалуйста, загрузите изображение.');
+                return;
+            }
+
+            // Распознавание текста с помощью Tesseract.js
+            Tesseract.recognize(
+                file,
+                'eng',
+                { logger: info => console.log(info) }
+            ).then(({ data: { text } }) => {
+                const phoneNumbers = extractPhoneNumbers(text);
+                if (phoneNumbers.length > 0) {
+                    const vcfData = createVcfFile(phoneNumbers);
+                    downloadFile('phone_numbers.vcf', vcfData);
+                } else {
+                    alert('Не удалось распознать номера телефонов на изображении.');
+                }
+            }).catch(error => {
+                console.error(error);
+                alert('Ошибка при распознавании текста.');
+            });
+        }
+
+        function extractPhoneNumbers(text) {
+            // Поиск номеров телефонов в тексте
+            const phoneRegex = /\+?\d[\d -]{8,}\d/g;
+            return text.match(phoneRegex) || [];
+        }
+
+        function createVcfFile(phoneNumbers) {
+            // Форматирование номеров телефонов в формат vCard
+            return phoneNumbers.map(number => 
+                `BEGIN:VCARD
+VERSION:3.0
+FN:Contact
+TEL:${number}
+END:VCARD`
+            ).join('\n');
+        }
+
+        function downloadFile(filename, data) {
+            const blob = new Blob([data], { type: 'text/vcard' });
+            const url = URL.createObjectURL(blob);
+            const link = document.getElementById('downloadLink');
+            link.href = url;
+            link.download = filename;
+            link.style.display = 'block';
+            link.textContent = 'Скачать файл VCF';
+        }
+    </script>
+</body>
+</html>
